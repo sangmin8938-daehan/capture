@@ -1,0 +1,17 @@
+{
+  "name": "이미지 압축기",
+  "short_name": "압축기",
+  "description": "스크린샷 붙여넣기 → 자동 압축",
+  "start_url": "/이미지압축기.html",
+  "display": "standalone",
+  "background_color": "#f0f2f5",
+  "theme_color": "#4f8ef7",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

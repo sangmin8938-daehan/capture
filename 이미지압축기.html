@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="theme-color" content="#4f8ef7">
+<meta name="application-name" content="이미지 압축기">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>이미지 압축기</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiM0ZjhlZjciLz4KICA8cmVjdCB4PSIxMCIgeT0iMTQiIHdpZHRoPSI0NCIgaGVpZ2h0PSIzNiIgcng9IjUiIGZpbGw9IndoaXRlIi8+CiAgPGNpcmNsZSBjeD0iMjIiIGN5PSIyNiIgcj0iNSIgZmlsbD0iIzRmOGVmNyIvPgogIDxwb2x5Z29uIHBvaW50cz0iMTAsNTAgMjQsMzIgMzQsNDIgNDIsMzQgNTQsNTAiIGZpbGw9IiM0ZjhlZjciIG9wYWNpdHk9IjAuODUiLz4KPC9zdmc+">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Malgun Gothic', sans-serif;
+  background: #f0f2f5;
+  min-height: 100vh;
+  padding: 20px;
+  color: #1a1a2e;
+}
+h1 { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
+.sub { font-size: 12px; color: #999; margin-bottom: 14px; }
+
+/* ── 붙여넣기 존 ── */
+#paste-zone {
+  border: 2px dashed #b0b8c8;
+  border-radius: 12px;
+  background: #fff;
+  min-height: 110px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  margin-bottom: 12px;
+  position: relative;
+}
+#paste-zone:hover, #paste-zone.drag-over { border-color: #4f8ef7; background: #f0f5ff; }
+#paste-zone.has-img { border-style: solid; border-color: #4f8ef7; }
+#paste-zone .ph { text-align: center; }
+#paste-zone .ph-icon { font-size: 28px; margin-bottom: 4px; }
+#paste-zone .ph-txt  { font-size: 13px; color: #888; }
+#paste-zone .ph-sub  { font-size: 11px; color: #bbb; margin-top: 3px; }
+#paste-thumb {
+  display: none;
+  max-width: 100%;
+  max-height: 160px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+#paste-info {
+  display: none;
+  font-size: 11px;
+  color: #888;
+  margin-top: 6px;
+  text-align: center;
+}
+
+/* ── 설정 패널 ── */
+.panel {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e4e8ef;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+.panel-title { font-size: 12px; color: #aaa; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 10px; }
+.row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.row:last-child { margin-bottom: 0; }
+.lbl { font-size: 13px; color: #555; width: 80px; flex-shrink: 0; }
+.row input[type=range] { flex: 1; accent-color: #4f8ef7; cursor: pointer; }
+.val { font-size: 13px; font-weight: 700; color: #4f8ef7; width: 50px; text-align: right; flex-shrink: 0; }
+
+/* 목표 용량 입력 */
+.target-row { display: flex; align-items: center; gap: 8px; }
+.target-row input[type=number] {
+  width: 72px; padding: 5px 8px; border: 1px solid #ddd;
+  border-radius: 8px; font-size: 14px; font-family: 'Malgun Gothic', sans-serif;
+  text-align: center; color: #1a1a2e;
+}
+.target-row span { font-size: 13px; color: #555; }
+.mode-btns { display: flex; gap: 6px; margin-left: auto; }
+.mode-btn {
+  padding: 4px 10px; border-radius: 20px; font-size: 12px;
+  border: 1px solid #ddd; background: #f5f5f5; cursor: pointer;
+  font-family: 'Malgun Gothic', sans-serif; color: #777; transition: all 0.15s;
+}
+.mode-btn.active { background: #4f8ef7; color: #fff; border-color: #4f8ef7; }
+
+/* ── 변환 버튼 ── */
+#btn-convert {
+  width: 100%; padding: 14px; background: #4f8ef7; color: #fff;
+  border: none; border-radius: 12px; font-size: 16px; font-weight: 700;
+  font-family: 'Malgun Gothic', sans-serif; cursor: pointer;
+  transition: background 0.15s, transform 0.1s; margin-bottom: 16px;
+}
+#btn-convert:hover { background: #3a7aee; }
+#btn-convert:active { transform: scale(0.98); }
+#btn-convert:disabled { background: #b0bec5; cursor: not-allowed; }
+
+/* ── 결과 영역 (항상 표시, 내용만 바뀜) ── */
+#result-wrap { display: none; }
+
+.result-card {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e4e8ef;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.result-header {
+  display: flex; justify-content: space-between;
+  align-items: center; margin-bottom: 10px;
+}
+.result-title { font-size: 13px; font-weight: 700; color: #555; }
+.badges { display: flex; gap: 6px; }
+.badge {
+  font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 700;
+}
+.badge-size { background: #e3f2fd; color: #1565c0; }
+.badge-save { background: #e8f5e9; color: #2e7d32; }
+.badge-warn { background: #fff3e0; color: #e65100; }
+
+#result-img {
+  width: 100%; max-height: 300px; object-fit: contain;
+  display: block; border-radius: 8px; background: #f8f8f8;
+  margin-bottom: 8px;
+}
+.result-meta { font-size: 11px; color: #999; line-height: 1.8; }
+.result-meta b { color: #555; }
+
+/* 진행바 */
+#progress-wrap { display: none; margin-bottom: 12px; }
+.prog-bar-bg { background: #e0e0e0; border-radius: 10px; height: 8px; overflow: hidden; }
+.prog-bar-fill { background: #4f8ef7; height: 100%; border-radius: 10px; width: 0%; transition: width 0.2s; }
+.prog-txt { font-size: 12px; color: #888; margin-top: 5px; text-align: center; }
+
+/* ── 하단 버튼들 ── */
+.action-btns { display: flex; gap: 8px; }
+.btn-action {
+  flex: 1; padding: 11px; border: none; border-radius: 10px;
+  font-size: 13px; font-weight: 700; font-family: 'Malgun Gothic', sans-serif;
+  cursor: pointer; transition: background 0.15s, transform 0.1s;
+}
+.btn-action:active { transform: scale(0.97); }
+.btn-blue { background: #4f8ef7; color: #fff; }
+.btn-blue:hover { background: #3a7aee; }
+.btn-blue.ok { background: #43a047; }
+.btn-gray { background: #f0f0f0; color: #555; }
+.btn-gray:hover { background: #e0e0e0; }
+
+/* 오버레이 */
+#overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.78);
+  z-index: 1000; align-items: center; justify-content: center; padding: 20px;
+}
+#overlay.show { display: flex; }
+.ov-box { background: #fff; border-radius: 14px; padding: 20px; max-width: 480px; width: 100%; text-align: center; }
+.ov-box p { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.ov-box small { font-size: 12px; color: #888; display: block; margin-bottom: 12px; }
+#ov-img { max-width: 100%; max-height: 300px; border-radius: 8px; border: 1px solid #eee; cursor: context-menu; display: block; margin: 0 auto; }
+.ov-btns { display: flex; gap: 8px; margin-top: 12px; }
+.ov-btns button { flex:1; padding:10px; border:none; border-radius:8px; font-size:13px; font-family:'Malgun Gothic',sans-serif; cursor:pointer; }
+.ob-blue { background:#4f8ef7; color:#fff; }
+.ob-gray { background:#f0f0f0; color:#555; }
+
+/* 토스트 */
+#toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(60px);
+  background: #323232; color: #fff; padding: 10px 22px;
+  border-radius: 24px; font-size: 13px; opacity: 0;
+  transition: all 0.3s; pointer-events: none; z-index: 9999; white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<h1>📋 이미지 압축기</h1>
+<p class="sub">붙여넣기 → 변환 → 복사 &nbsp;|&nbsp; 화면 이동 없음 &nbsp;<button onclick="showInstallGuide()" style="font-size:11px;padding:2px 8px;border:1px solid #4f8ef7;border-radius:20px;background:transparent;color:#4f8ef7;cursor:pointer;font-family:inherit;">📌 앱으로 설치</button></p>
+
+<!-- ① 붙여넣기 존 -->
+<div id="paste-zone" tabindex="0">
+  <div class="ph" id="placeholder">
+    <div class="ph-icon">📷</div>
+    <div class="ph-txt">여기 클릭 후 &nbsp;<strong>Ctrl+V</strong></div>
+    <div class="ph-sub">또는 이미지 드래그</div>
+  </div>
+  <img id="paste-thumb" alt="붙여넣은 이미지">
+  <div id="paste-info"></div>
+</div>
+
+<!-- ② 설정 -->
+<div class="panel">
+  <div class="panel-title">압축 설정</div>
+
+  <!-- 모드 선택 -->
+  <div class="row">
+    <span class="lbl">모드</span>
+    <div class="mode-btns">
+      <button class="mode-btn active" id="mode-auto" onclick="setMode('auto')">🎯 목표 용량</button>
+      <button class="mode-btn"        id="mode-manual" onclick="setMode('manual')">🎚️ 수동</button>
+    </div>
+  </div>
+
+  <!-- 자동 모드 -->
+  <div id="auto-opts">
+    <div class="row">
+      <span class="lbl">목표 용량</span>
+      <div class="target-row">
+        <input type="number" id="target-kb" value="15" min="5" max="5000" step="1">
+        <span>KB 이하</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 수동 모드 -->
+  <div id="manual-opts" style="display:none;">
+    <div class="row">
+      <span class="lbl">이미지 크기</span>
+      <input type="range" id="scale" min="1" max="100" value="50" step="1">
+      <span class="val" id="scale-val">50%</span>
+    </div>
+    <div class="row">
+      <span class="lbl">JPEG 품질</span>
+      <input type="range" id="quality" min="10" max="95" value="70" step="1">
+      <span class="val" id="quality-val">70%</span>
+    </div>
+  </div>
+</div>
+
+<!-- ③ 변환 버튼 -->
+<button id="btn-convert" onclick="doConvert()" disabled>이미지를 먼저 붙여넣어 주세요</button>
+
+<!-- ④ 진행바 (자동모드용) -->
+<div id="progress-wrap">
+  <div class="prog-bar-bg"><div class="prog-bar-fill" id="prog-fill"></div></div>
+  <div class="prog-txt" id="prog-txt">최적화 중...</div>
+</div>
+
+<!-- ⑤ 결과 (항상 이 자리) -->
+<div id="result-wrap">
+  <div class="result-card">
+    <div class="result-header">
+      <span class="result-title">변환 결과</span>
+      <div class="badges">
+        <span class="badge badge-size" id="badge-size">-</span>
+        <span class="badge" id="badge-save">-</span>
+      </div>
+    </div>
+    <img id="result-img" src="" alt="결과">
+    <div class="result-meta" id="result-meta"></div>
+  </div>
+
+  <div class="action-btns">
+    <button class="btn-action btn-blue" id="btn-copy" onclick="doCopy()">📋 클립보드 복사</button>
+    <button class="btn-action btn-gray" onclick="doDownload()">💾 저장</button>
+  </div>
+</div>
+
+<!-- 오버레이 -->
+
+<!-- 설치 안내 모달 -->
+<div id="install-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:2000;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:16px;padding:22px;max-width:360px;width:100%;">
+    <p style="font-size:16px;font-weight:700;margin-bottom:4px;">📌 앱으로 설치하기</p>
+    <p style="font-size:12px;color:#999;margin-bottom:16px;">Chrome에서 작업표시줄에 고정하는 방법</p>
+    <div style="counter-reset:step;">
+      <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;">
+        <span style="background:#4f8ef7;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">1</span>
+        <span style="font-size:13px;line-height:1.6;">이 파일을 <b>Chrome</b>으로 열기</span>
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;">
+        <span style="background:#4f8ef7;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">2</span>
+        <span style="font-size:13px;line-height:1.6;">우측 상단 <b>⋮ (점 세 개)</b> 클릭</span>
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;">
+        <span style="background:#4f8ef7;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">3</span>
+        <span style="font-size:13px;line-height:1.6;"><b>저장 및 공유 → 바로가기 만들기</b></span>
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;">
+        <span style="background:#4f8ef7;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">4</span>
+        <span style="font-size:13px;line-height:1.6;"><b>"창으로 열기"</b> 체크 ✅ → <b>만들기</b></span>
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:16px;">
+        <span style="background:#4f8ef7;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">5</span>
+        <span style="font-size:13px;line-height:1.6;">바탕화면 아이콘 우클릭 → <b>작업표시줄에 고정</b></span>
+      </div>
+    </div>
+    <div style="background:#e3f2fd;border-radius:8px;padding:10px 12px;font-size:12px;color:#1565c0;margin-bottom:14px;">
+      ✅ 이후엔 작업표시줄 클릭만으로 앱처럼 바로 열려요!
+    </div>
+    <button onclick="document.getElementById('install-modal').style.display='none'" style="width:100%;padding:11px;background:#4f8ef7;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;">확인</button>
+  </div>
+</div>
+
+<div id="overlay">
+  <div class="ov-box">
+    <p>이미지를 우클릭하세요</p>
+    <small>우클릭 → <strong>이미지 복사</strong> → 원하는 곳에 붙여넣기</small>
+    <img id="ov-img" src="" alt="결과">
+    <div class="ov-btns">
+      <button class="ob-blue" onclick="doDownload()">💾 파일로 저장</button>
+      <button class="ob-gray" onclick="closeOverlay()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<canvas id="canvas" style="display:none;"></canvas>
+
+<script>
+// ── 상태 ──
+var origImg      = null;
+var origFileSize = 0;
+var origW = 0, origH = 0;
+var compDataURL  = null;
+var compBlob     = null;
+var currentMode  = 'auto';
+
+// ── 모드 전환 ──
+function setMode(m) {
+  currentMode = m;
+  document.getElementById('mode-auto').classList.toggle('active', m === 'auto');
+  document.getElementById('mode-manual').classList.toggle('active', m === 'manual');
+  document.getElementById('auto-opts').style.display   = m === 'auto'   ? '' : 'none';
+  document.getElementById('manual-opts').style.display = m === 'manual' ? '' : 'none';
+}
+
+// ── 슬라이더 ──
+document.getElementById('scale').addEventListener('input', function() {
+  document.getElementById('scale-val').textContent = this.value + '%';
+});
+document.getElementById('quality').addEventListener('input', function() {
+  document.getElementById('quality-val').textContent = this.value + '%';
+});
+
+// ── Ctrl+V ──
+document.addEventListener('paste', function(e) {
+  var items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].type.startsWith('image/')) { loadFile(items[i].getAsFile()); break; }
+  }
+});
+
+// ── 드래그 앤 드롭 ──
+var zone = document.getElementById('paste-zone');
+zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('drag-over'); });
+zone.addEventListener('dragleave', function() { zone.classList.remove('drag-over'); });
+zone.addEventListener('drop', function(e) {
+  e.preventDefault(); zone.classList.remove('drag-over');
+  var f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) loadFile(f);
+});
+
+// ── 이미지 로드 ──
+function loadFile(file) {
+  origFileSize = file.size;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      origImg = img; origW = img.width; origH = img.height;
+
+      // 붙여넣기 존에 썸네일 표시
+      var thumb = document.getElementById('paste-thumb');
+      thumb.src = e.target.result;
+      thumb.style.display = 'block';
+      document.getElementById('placeholder').style.display = 'none';
+      document.getElementById('paste-info').style.display = 'block';
+      document.getElementById('paste-info').textContent =
+        origW + ' × ' + origH + 'px  |  ' + formatSize(file.size);
+      zone.classList.add('has-img');
+
+      // 변환 버튼 활성화
+      var btn = document.getElementById('btn-convert');
+      btn.disabled = false;
+      btn.textContent = '⚡ 변환하기';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── 변환 실행 ──
+function doConvert() {
+  if (!origImg) return;
+  if (currentMode === 'auto') {
+    doAutoCompress();
+  } else {
+    doManualCompress();
+  }
+}
+
+// ── 수동 압축 ──
+function doManualCompress() {
+  var scale   = parseInt(document.getElementById('scale').value) / 100;
+  var quality = parseInt(document.getElementById('quality').value) / 100;
+  renderResult(scale, quality, function() {});
+}
+
+// ── 자동 압축 (목표 용량 이진탐색) ──
+function doAutoCompress() {
+  var targetBytes = parseInt(document.getElementById('target-kb').value) * 1024;
+  document.getElementById('progress-wrap').style.display = 'block';
+
+  // scale · quality 이진탐색으로 목표 용량 달성
+  // scale: 10~100%, quality: 10~90% 범위에서 반복
+  var attempts = 0;
+  var maxAttempts = 20;
+
+  var scLow = 0.05, scHigh = 1.0;
+  var scale = 0.5, quality = 0.7;
+
+  function tryCompress() {
+    if (attempts >= maxAttempts) {
+      // 최종 결과 확정
+      renderResult(scale, quality, function() {
+        document.getElementById('progress-wrap').style.display = 'none';
+      });
+      return;
+    }
+    attempts++;
+
+    var pct = Math.round((attempts / maxAttempts) * 100);
+    document.getElementById('prog-fill').style.width = pct + '%';
+    document.getElementById('prog-txt').textContent =
+      '최적화 중... (시도 ' + attempts + '/' + maxAttempts + ')';
+
+    var canvas = document.getElementById('canvas');
+    var w = Math.max(1, Math.round(origW * scale));
+    var h = Math.max(1, Math.round(origH * scale));
+    canvas.width = w; canvas.height = h;
+    var ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(origImg, 0, 0, w, h);
+
+    canvas.toBlob(function(blob) {
+      var size = blob.size;
+      if (size > targetBytes) {
+        // 너무 큼 → 줄이기
+        scHigh = scale;
+        scale  = (scLow + scHigh) / 2;
+        quality = Math.max(0.1, quality - 0.05);
+      } else {
+        // 목표 달성 혹은 더 줄일 필요 없음
+        if (Math.abs(size - targetBytes) / targetBytes < 0.05 || scHigh - scLow < 0.02) {
+          // 5% 이내 오차면 완료
+          renderResult(scale, quality, function() {
+            document.getElementById('progress-wrap').style.display = 'none';
+          });
+          return;
+        }
+        scLow = scale;
+        scale = (scLow + scHigh) / 2;
+      }
+      setTimeout(tryCompress, 10);
+    }, 'image/jpeg', quality);
+  }
+
+  tryCompress();
+}
+
+// ── 결과 렌더링 ──
+function renderResult(scale, quality, cb) {
+  var canvas = document.getElementById('canvas');
+  var w = Math.max(1, Math.round(origW * scale));
+  var h = Math.max(1, Math.round(origH * scale));
+  canvas.width = w; canvas.height = h;
+  var ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+  ctx.drawImage(origImg, 0, 0, w, h);
+
+  compDataURL = canvas.toDataURL('image/jpeg', quality);
+  document.getElementById('result-img').src = compDataURL;
+  document.getElementById('ov-img').src     = compDataURL;
+
+  canvas.toBlob(function(blob) {
+    compBlob = blob;
+    var saved = origFileSize - blob.size;
+    var pct   = origFileSize > 0 ? Math.round((saved / origFileSize) * 100) : 0;
+
+    document.getElementById('badge-size').textContent = formatSize(blob.size);
+
+    var saveBadge = document.getElementById('badge-save');
+    if (saved > 0) {
+      saveBadge.textContent = '▼ ' + pct + '% 절약';
+      saveBadge.className   = 'badge badge-save';
+    } else {
+      saveBadge.textContent = '▲ 원본보다 큼';
+      saveBadge.className   = 'badge badge-warn';
+    }
+
+    document.getElementById('result-meta').innerHTML =
+      '<b>크기</b> ' + origW + '×' + origH + ' → ' + w + '×' + h + 'px &nbsp;|&nbsp; ' +
+      '<b>용량</b> ' + formatSize(origFileSize) + ' → ' + formatSize(blob.size) + ' &nbsp;|&nbsp; ' +
+      '<b>배율</b> ' + Math.round(scale * 100) + '% &nbsp;|&nbsp; ' +
+      '<b>품질</b> ' + Math.round(quality * 100) + '%';
+
+    document.getElementById('result-wrap').style.display = 'block';
+
+    // 결과 위치로 부드럽게 스크롤
+    document.getElementById('result-wrap').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    cb();
+  }, 'image/jpeg', quality);
+}
+
+// ── 클립보드 복사 ──
+async function doCopy() {
+  if (!compBlob) return;
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': compBlob })]);
+    var btn = document.getElementById('btn-copy');
+    btn.classList.add('ok');
+    btn.textContent = '✅ 복사 완료!';
+    toast('클립보드에 복사됐어요!');
+    setTimeout(function() { btn.classList.remove('ok'); btn.textContent = '📋 클립보드 복사'; }, 2000);
+  } catch(e) {
+    document.getElementById('overlay').classList.add('show');
+  }
+}
+
+function closeOverlay() { document.getElementById('overlay').classList.remove('show'); }
+document.getElementById('overlay').addEventListener('click', function(e) { if (e.target === this) closeOverlay(); });
+
+// ── 다운로드 ──
+function doDownload() {
+  var a = document.createElement('a');
+  a.href = compDataURL;
+  a.download = '압축_' + Date.now() + '.jpg';
+  a.click();
+}
+
+
+// ── 설치 안내 ──
+function showInstallGuide() {
+  document.getElementById('install-modal').style.display = 'flex';
+}
+
+// ── 토스트 ──
+function toast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 2500);
+}
+
+// ── 용량 포맷 ──
+function formatSize(b) {
+  if (b >= 1048576) return (b / 1048576).toFixed(1) + 'MB';
+  if (b >= 1024)    return Math.round(b / 1024) + 'KB';
+  return b + 'B';
+}
+</script>
+</body>
+</html>
